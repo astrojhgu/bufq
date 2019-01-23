@@ -90,7 +90,7 @@ template <typename T> class BufQ
     {
         while (waiting.load () && !filled_q.empty ())
             {
-                cv.notify_all ();
+                cv.notify_one ();
             }
         {
             std::lock_guard<std::mutex> lk (mx);
@@ -117,7 +117,7 @@ template <typename T> class BufQ
             filled_q.push_back (unfilled_q.front ());
             unfilled_q.pop_front ();
         }
-        cv.notify_all ();
+        cv.notify_one ();
     }
 };
 
