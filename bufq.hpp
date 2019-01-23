@@ -13,19 +13,29 @@
 template <typename T> class BufQ
 {
   public:
+    //filled_q stores the buffers that has been filled
+    //and ready to be processed in later stage.
     std::list<std::shared_ptr<T>> filled_q;
+    //unfilled_q stores the buffers that has been consumed
+    //by an external consumer and marked to be ready
+    //to be filled with new data
     std::list<std::shared_ptr<T>> unfilled_q;
+    //proc_buf is one single buffer region that is
+    //being processed/consumed by an external consumer
     std::shared_ptr<T> proc_buf = nullptr;
     std::mutex mx;
     std::condition_variable cv;
+    //some external consumer is waiting for a buffer
     std::atomic_bool waiting;
 
   public:
+    //initialize buffers
     BufQ (const std::initializer_list<std::shared_ptr<T>> &data)
     : unfilled_q{ data }, waiting (false)
     {
     }
 
+    //initialize buffers
     BufQ (const std::vector<std::shared_ptr<T>> &data) : waiting (false)
     {
         for (auto &i : data)
@@ -35,8 +45,13 @@ template <typename T> class BufQ
     }
 
     BufQ (const BufQ &) = delete;
+    BufQ& operator=(const BufQ&)=delete;
 
   public:
+    //fetch a buffer that has been filled with 
+    //valid data into proc_buf.
+    //then external buffer can process the data
+    //in it.
     std::shared_ptr<T> fetch ()
     {
         using namespace std::chrono_literals;
@@ -54,6 +69,12 @@ template <typename T> class BufQ
         return proc_buf;
     }
 
+    //Pass a closure into this method
+    //this closure will fill one buffer with valid data
+    //that will be later processed by an external 
+    //consumer.
+    //it is actually a combination of 
+    //prepare_write_buf, call the func, and submit the result. 
     template <typename F> void write (F &&func)
     {
         auto p = prepare_write_buf ();
@@ -63,6 +84,8 @@ template <typename T> class BufQ
         submit ();
     }
 
+    //prepare a buffer that is ready to be filled
+    //with valid data.
     std::shared_ptr<T> prepare_write_buf ()
     {
         while (waiting.load () && !filled_q.empty ())
@@ -84,6 +107,9 @@ template <typename T> class BufQ
         return unfilled_q.front ();
     }
 
+    //when the data filling is finished
+    //call this method to move it to filled_q,
+    //which is ready to be consumed.
     void submit ()
     {
         {
