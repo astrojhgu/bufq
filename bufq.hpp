@@ -25,6 +25,11 @@ public:
     {
     }
 
+    BufQ(const std::vector<std::shared_ptr<T>>& data)
+    :unfilled_q(data), waiting(false)
+    {
+    }
+
 public:
     std::shared_ptr<T> fetch(){
         using namespace std::chrono_literals;
